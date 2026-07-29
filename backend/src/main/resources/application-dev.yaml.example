@@ -1,0 +1,14 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3307/peachwuhu_dev?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: YOUR_DEV_DB_USERNAME
+    password: YOUR_DEV_DB_PASSWORD
+
+peachwuhu:
+  storage-root: ../photos
+  auth:
+    username: YOUR_LOGIN_USERNAME
+    password: YOUR_LOGIN_PASSWORD

@@ -1,0 +1,17 @@
+[Unit]
+Description=PeachWuhu Spring Boot
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+User=peachwuhu
+Group=peachwuhu
+WorkingDirectory=/opt/peachwuhu/current
+ExecStart=/usr/bin/java -jar /opt/peachwuhu/current/peachwuhu.jar --spring.profiles.active=prod
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

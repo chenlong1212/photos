@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: peachwuhu
+  profiles:
+    default: dev
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 500MB
+  flyway:
+    enabled: true
+    validate-on-migrate: true
+    baseline-on-migrate: true
+
+server:
+  port: 18000
+  servlet:
+    session:
+      cookie:
+        name: peachwuhu_session
+        http-only: true
+        same-site: lax
+
+peachwuhu:
+  preview-size: 400
+  allowed-extensions: jpg,jpeg,png,heic,heif,webp

@@ -1,0 +1,21 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: peachwuhu-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: peachwuhu
+      MYSQL_DATABASE: peachwuhu_dev
+      TZ: Asia/Shanghai
+    ports:
+      - "3307:3306"
+    volumes:
+      - peachwuhu_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  peachwuhu_mysql:
