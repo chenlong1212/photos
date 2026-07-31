@@ -22,9 +22,15 @@ public class AppProperties {
     public static class Auth {
         private String username;
         private String password;
+        private int trustedDeviceDays = 30;
+        private boolean trustedCookieSecure;
         public String getUsername() { return username; }
         public void setUsername(String username) { this.username = username; }
         public String getPassword() { return password; }
         public void setPassword(String password) { this.password = password; }
+        public int getTrustedDeviceDays() { return trustedDeviceDays; }
+        public void setTrustedDeviceDays(int trustedDeviceDays) { this.trustedDeviceDays = trustedDeviceDays; }
+        public boolean isTrustedCookieSecure() { return trustedCookieSecure; }
+        public void setTrustedCookieSecure(boolean trustedCookieSecure) { this.trustedCookieSecure = trustedCookieSecure; }
     }
 }

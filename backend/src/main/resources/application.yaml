@@ -24,3 +24,6 @@ server:
 peachwuhu:
   preview-size: 400
   allowed-extensions: jpg,jpeg,png,heic,heif,webp
+  auth:
+    trusted-device-days: 30
+    trusted-cookie-secure: false
