@@ -81,6 +81,7 @@ onMounted(load)
           </button>
           <div class="menu-divider"></div>
           <router-link to="/admin" class="menu-item">管理面板</router-link>
+          <router-link to="/admin_trans" class="menu-item">转移图片</router-link>
           <router-link to="/recycle" class="menu-item">回收站 ♻️</router-link>
           <button class="menu-item logout" @click="logout">退出登录</button>
         </div>

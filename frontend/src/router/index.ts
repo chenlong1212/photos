@@ -6,6 +6,7 @@ import DayDetailView from '../views/DayDetailView.vue'
 import UploadView from '../views/UploadView.vue'
 import RecycleView from '../views/RecycleView.vue'
 import AdminView from '../views/AdminView.vue'
+import AdminTransferView from '../views/AdminTransferView.vue'
 import PhotoView from '../views/PhotoView.vue'
 
 const router = createRouter({
@@ -17,6 +18,7 @@ const router = createRouter({
     { path: '/upload', component: UploadView },
     { path: '/recycle', component: RecycleView },
     { path: '/admin', component: AdminView },
+    { path: '/admin_trans', component: AdminTransferView },
     { path: '/view', component: PhotoView }
   ],
   scrollBehavior: (_to, _from, saved) => saved || { top: 0 }
