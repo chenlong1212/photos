@@ -6,11 +6,16 @@ import { http } from '../api/http'
 const router = useRouter()
 const username = ref('')
 const password = ref('')
+const rememberDevice = ref(false)
 const error = ref('')
 const submit = async () => {
   error.value = ''
   try {
-    await http.post('/auth/login', { username: username.value, password: password.value })
+    await http.post('/auth/login', {
+      username: username.value,
+      password: password.value,
+      rememberDevice: rememberDevice.value
+    })
     await router.replace('/')
   } catch (e: any) {
     error.value = e.response?.data?.message || '账号或密码错误'
@@ -26,7 +31,11 @@ const submit = async () => {
       <div v-if="error" class="error-msg">{{ error }}</div>
       <form @submit.prevent="submit">
         <div class="input-group"><input v-model="username" type="text" placeholder="Username" required autocomplete="off"></div>
-        <div class="input-group"><input v-model="password" type="password" placeholder="Password" required></div>
+        <div class="input-group"><input v-model="password" type="password" placeholder="Password" required autocomplete="current-password"></div>
+        <label class="remember-option">
+          <input v-model="rememberDevice" type="checkbox">
+          <span>此设备免密登录30天</span>
+        </label>
         <button type="submit">登 录</button>
       </form>
     </div>
@@ -39,8 +48,9 @@ const submit = async () => {
 .brand-title { font-family:Georgia,serif;font-size:28px;font-weight:800;text-align:center;color:#333;margin-bottom:5px;letter-spacing:1px }
 .sub-title { text-align:center;font-size:13px;color:#777;margin-bottom:35px;letter-spacing:2px;text-transform:uppercase }
 .input-group { margin-bottom:20px }
-input { width:100%;padding:15px 20px;border-radius:12px;border:2px solid transparent;background:rgba(255,255,255,.6);font-size:16px;color:#333;outline:none;transition:all .3s }
-input::placeholder{color:#aaa} input:focus{background:#fff;border-color:#a18cd1;box-shadow:0 0 0 4px rgba(161,140,209,.1)}
+.input-group input { width:100%;padding:15px 20px;border-radius:12px;border:2px solid transparent;background:rgba(255,255,255,.6);font-size:16px;color:#333;outline:none;transition:all .3s }
+.input-group input::placeholder{color:#aaa}.input-group input:focus{background:#fff;border-color:#a18cd1;box-shadow:0 0 0 4px rgba(161,140,209,.1)}
+.remember-option{display:flex;align-items:center;gap:8px;margin:2px 4px 10px;color:#666;font-size:14px;cursor:pointer}.remember-option input{width:17px;height:17px;accent-color:#a18cd1}.remember-option span{line-height:1}
 button { width:100%;padding:16px;border:none;border-radius:50px;background:linear-gradient(120deg,#a18cd1 0%,#fbc2eb 100%);color:#fff;font-size:18px;font-weight:bold;cursor:pointer;margin-top:10px;box-shadow:0 10px 20px rgba(161,140,209,.3);transition:transform .1s }
 button:active{transform:scale(.96);opacity:.9}.error-msg{color:#ff3b30;text-align:center;font-size:14px;margin-bottom:15px}
 @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}

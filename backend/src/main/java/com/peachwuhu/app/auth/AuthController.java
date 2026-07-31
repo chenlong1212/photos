@@ -47,7 +47,8 @@ public class AuthController {
         request.changeSessionId();
         session.setAttribute(AUTHENTICATED, true);
         session.setAttribute(CURRENT_ALBUM, "peachwuhu");
-        trustedDevices.issue(request, response);
+        if (login.rememberDevice()) trustedDevices.issue(request, response);
+        else trustedDevices.revoke(request, response);
         return Map.of("status", "success", "currentAlbum", "peachwuhu");
     }
 
@@ -59,5 +60,5 @@ public class AuthController {
         return Map.of("status", "success");
     }
 
-    public record LoginRequest(String username, String password) {}
+    public record LoginRequest(String username, String password, boolean rememberDevice) {}
 }
