@@ -33,13 +33,27 @@ public class AlbumService {
         Map<String, Object> album = requireAlbum(albumKey);
         long albumId = ((Number) album.get("id")).longValue();
         List<Map<String, Object>> days = jdbc.queryForList("""
-            SELECT d.photo_date AS date, d.info, COUNT(i.id) AS count
+            SELECT d.photo_date AS date, d.info, COUNT(i.id) AS count,
+                   COALESCE(
+                       MIN(CASE
+                           WHEN i.photo_time REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                           THEN CAST(REPLACE(LEFT(i.photo_time, 10), '-', '') AS UNSIGNED)
+                       END),
+                       d.photo_date
+                   ) AS startDate,
+                   COALESCE(
+                       MAX(CASE
+                           WHEN i.photo_time REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+                           THEN CAST(REPLACE(LEFT(i.photo_time, 10), '-', '') AS UNSIGNED)
+                       END),
+                       d.photo_date
+                   ) AS endDate
             FROM album_days d
             LEFT JOIN images i ON i.album_id=d.album_id AND i.photo_date=d.photo_date
             WHERE d.album_id=?
             GROUP BY d.id, d.photo_date, d.info
             HAVING count > 0
-            ORDER BY d.photo_date DESC
+            ORDER BY startDate DESC, d.photo_date DESC
             """, albumId);
         for (Map<String, Object> day : days) {
             int date = ((Number) day.get("date")).intValue();
