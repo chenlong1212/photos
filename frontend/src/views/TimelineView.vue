@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onActivated, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { http, mediaUrl } from '../api/http'
 
@@ -27,6 +27,8 @@ const groups = computed(() => years.value.map(year => ({
   year,
   days: days.value.filter(d => String(d.startDate).startsWith(year))
 })))
+const scrollKey = computed(() => `timeline-scroll:${current.value}`)
+const timelinePage=ref<HTMLElement>()
 
 async function load() {
   albums.value = (await http.get('/albums')).data
@@ -49,6 +51,21 @@ function doSearch(event:KeyboardEvent) {
   if (!row) return alert('未找到相关回忆 🍃')
   row.scrollIntoView({behavior:'smooth',block:'center'}); row.classList.add('highlight-anim')
   setTimeout(() => row.classList.remove('highlight-anim'), 1500)
+}
+function openDay(day:Day) {
+  sessionStorage.setItem(scrollKey.value, String(window.scrollY))
+  sessionStorage.setItem('timeline-return-ready', 'true')
+  document.getElementById('timeline-swipe-backdrop')?.remove()
+  const backdrop=document.createElement('div')
+  backdrop.id='timeline-swipe-backdrop'
+  const snapshot=timelinePage.value?.cloneNode(true) as HTMLElement|undefined
+  if(snapshot){
+    backdrop.style.cssText='position:fixed;inset:0;overflow:hidden;background:#fff;pointer-events:none;z-index:0'
+    snapshot.style.cssText=`position:absolute;left:0;top:${-window.scrollY}px;width:100%;min-height:100vh`
+    backdrop.appendChild(snapshot)
+    document.body.appendChild(backdrop)
+  }
+  router.push(`/day/${day.date}`)
 }
 function datePart(date:number, start:number, end:number) { return Number(String(date).slice(start,end)) }
 function isDateRange(day: Day) {
@@ -80,10 +97,21 @@ async function loadAndRestorePosition() {
   target?.scrollIntoView({block:'center'})
 }
 onMounted(loadAndRestorePosition)
+onActivated(async()=>{
+  const saved = sessionStorage.getItem(scrollKey.value)
+  if (saved === null) return
+  await nextTick()
+  if(timelinePage.value)timelinePage.value.scrollTop=Number(saved)
+  window.setTimeout(()=>{
+    window.scrollTo({top:Number(saved),behavior:'instant'})
+    document.getElementById('timeline-swipe-backdrop')?.remove()
+  },280)
+  sessionStorage.removeItem('timeline-return-ready')
+})
 </script>
 
 <template>
-  <main class="timeline-page" @click="menuOpen=false">
+  <main ref="timelinePage" class="timeline-page" @click="menuOpen=false">
     <div class="header-hero">
       <div class="menu-container" @click.stop>
         <div class="menu-btn" @click="menuOpen=!menuOpen">
@@ -108,7 +136,7 @@ onMounted(loadAndRestorePosition)
     <div class="timeline-container">
       <template v-for="group in groups" :key="group.year">
         <div class="year-separator" :id="`year-${group.year}`">{{ group.year }}</div>
-        <div v-for="day in group.days" :key="day.date" class="day-row" :data-date="day.date" @click="router.push(`/day/${day.date}`)">
+        <div v-for="day in group.days" :key="day.date" class="day-row" :data-date="day.date" @click="openDay(day)">
           <div class="col-date">
             <span class="date-month">{{ datePart(day.startDate,4,6) }}月</span>
             <div v-if="isDateRange(day)" class="date-range-lines">
