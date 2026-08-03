@@ -3,6 +3,8 @@ import { computed, nextTick, onActivated, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { http, mediaUrl } from '../api/http'
 
+defineOptions({name:'TimelineView'})
+
 type Album = { key: string; label: string }
 type Day = {
   date: number

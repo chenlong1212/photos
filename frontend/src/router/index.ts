@@ -21,7 +21,14 @@ const router = createRouter({
     { path: '/admin_trans', component: AdminTransferView },
     { path: '/view', component: PhotoView }
   ],
-  scrollBehavior: (_to, _from, saved) => saved || { top: 0 }
+  scrollBehavior: (to, from, saved) => {
+    if (to.path === '/' && from.path.startsWith('/day/')) {
+      const album = sessionStorage.getItem('currentAlbum') || 'peachwuhu'
+      const top = Number(sessionStorage.getItem(`timeline-scroll:${album}`) || 0)
+      return { top, behavior: 'auto' }
+    }
+    return saved || { top: 0 }
+  }
 })
 
 router.beforeEach(async to => {
