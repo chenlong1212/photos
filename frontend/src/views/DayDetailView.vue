@@ -16,7 +16,23 @@ function covers(){return [...document.querySelectorAll<HTMLElement>('.grid-item.
 function toggleCover(id:number){const image=images.value.find(x=>x.id===id)!;const count=images.value.filter(x=>x.isCover).length;if(!image.isCover&&count>=9)return alert('封面最多只能选择 9 张');image.isCover=!image.isCover}
 function sort(){images.value.sort((a,b)=>a.photoTime&&b.photoTime?a.photoTime.localeCompare(b.photoTime):a.photoTime?-1:b.photoTime?1:0)}
 async function save(){const selected=covers();if(selected.length&&![1,3,4,8,9].includes(selected.length))return alert('封面图数量只能是 1、3、4、8 或 9 张');loading.value='正在更新...';const order=[...document.querySelectorAll<HTMLElement>('.grid-item:not(.static-item)')].map(x=>Number(x.dataset.id));await http.put(`/albums/${album.value}/days/${date}`,{info:info.value,order,covers:selected});await router.push('/')}
-async function remove(id:number){if(!confirm('确定要删除吗？'))return;loading.value='正在删除...';await http.delete(`/albums/${album.value}/images/${id}`);loading.value='';await load()}
+async function remove(id:number){
+  if(loading.value||!confirm('确定要删除吗？'))return
+  loading.value='正在删除...'
+  try{
+    const {data}=await http.delete(`/albums/${album.value}/images/${id}`)
+    images.value=images.value.filter(image=>image.id!==id)
+    if(Number(data.remaining)===0){
+      await router.replace('/')
+      return
+    }
+    await load()
+  }catch(error:any){
+    alert(error.response?.data?.message||'删除失败，请稍后重试')
+  }finally{
+    loading.value=''
+  }
+}
 async function appendPhotos(event:Event){
   const input=event.target as HTMLInputElement
   const files=[...(input.files||[])]
