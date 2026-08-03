@@ -15,7 +15,8 @@ function toggleStyle(){listMode.value=!listMode.value;localStorage.setItem('view
 function covers(){return [...document.querySelectorAll<HTMLElement>('.grid-item.cover-selected:not(.static-item)')].map(x=>Number(x.dataset.id))}
 function toggleCover(id:number){const image=images.value.find(x=>x.id===id)!;const count=images.value.filter(x=>x.isCover).length;if(!image.isCover&&count>=9)return alert('封面最多只能选择 9 张');image.isCover=!image.isCover}
 function sort(){images.value.sort((a,b)=>a.photoTime&&b.photoTime?a.photoTime.localeCompare(b.photoTime):a.photoTime?-1:b.photoTime?1:0)}
-async function save(){const selected=covers();if(selected.length&&![1,3,4,8,9].includes(selected.length))return alert('封面图数量只能是 1、3、4、8 或 9 张');loading.value='正在更新...';const order=[...document.querySelectorAll<HTMLElement>('.grid-item:not(.static-item)')].map(x=>Number(x.dataset.id));await http.put(`/albums/${album.value}/days/${date}`,{info:info.value,order,covers:selected});await router.push('/')}
+function returnToDate(){return router.push({path:'/',query:{focus:String(date)}})}
+async function save(){const selected=covers();if(selected.length&&![1,3,4,8,9].includes(selected.length))return alert('封面图数量只能是 1、3、4、8 或 9 张');loading.value='正在更新...';const order=[...document.querySelectorAll<HTMLElement>('.grid-item:not(.static-item)')].map(x=>Number(x.dataset.id));await http.put(`/albums/${album.value}/days/${date}`,{info:info.value,order,covers:selected});await returnToDate()}
 async function remove(id:number){
   if(loading.value||!confirm('确定要删除吗？'))return
   loading.value='正在删除...'
@@ -23,7 +24,7 @@ async function remove(id:number){
     const {data}=await http.delete(`/albums/${album.value}/images/${id}`)
     images.value=images.value.filter(image=>image.id!==id)
     if(Number(data.remaining)===0){
-      await router.replace('/')
+      await returnToDate()
       return
     }
     await load()
@@ -63,7 +64,7 @@ onMounted(load)
 </script>
 <template><main class="detail-page">
   <div class="loading-overlay" :class="{show:loading}"><div class="spinner"></div><div class="loading-text">{{loading}}</div></div>
-  <div class="navbar"><a class="back-btn" @click="router.push('/')"><i/> 返回</a><div class="nav-center"><div class="nav-title">{{String(date).replace(/(....)(..)(..)/,'$1.$2.$3')}}</div><button class="style-toggle-btn" @click="toggleStyle">{{listMode?'≣':'⬜'}}</button></div><div class="nav-actions"><button class="sort-btn" @click="sort">整理</button><button class="save-btn" @click="save">保存</button></div></div>
+  <div class="navbar"><a class="back-btn" @click="returnToDate"><i/> 返回</a><div class="nav-center"><div class="nav-title">{{String(date).replace(/(....)(..)(..)/,'$1.$2.$3')}}</div><button class="style-toggle-btn" @click="toggleStyle">{{listMode?'≣':'⬜'}}</button></div><div class="nav-actions"><button class="sort-btn" @click="sort">整理</button><button class="save-btn" @click="save">保存</button></div></div>
   <div class="container"><div class="text-area-wrapper"><textarea v-model="info" class="story-input" placeholder="点击编辑文字..."/></div>
     <div ref="grid" class="grid" :class="{'list-mode':listMode}">
       <div v-for="image in images" :key="image.id" class="grid-item fade-in" :class="{'cover-selected':image.isCover}" :data-id="image.id" :data-photo-time="image.photoTime">

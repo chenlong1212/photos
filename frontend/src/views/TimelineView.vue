@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { http, mediaUrl } from '../api/http'
 
 type Album = { key: string; label: string }
@@ -15,6 +15,7 @@ type Day = {
   coverLayout: number
 }
 const router = useRouter()
+const route = useRoute()
 const albums = ref<Album[]>([])
 const current = ref(sessionStorage.getItem('currentAlbum') || 'peachwuhu')
 const label = computed(() => albums.value.find(a => a.key === current.value)?.label || current.value)
@@ -65,7 +66,20 @@ function rangeEnd(day: Day) {
   if (sameYear) return `${endMonth}月${endDay}日`
   return `${end.slice(0, 4)}年${endMonth}月${endDay}日`
 }
-onMounted(load)
+async function loadAndRestorePosition() {
+  await load()
+  const focus = Number(route.query.focus)
+  if (!focus) return
+  await nextTick()
+  const rows = [...document.querySelectorAll<HTMLElement>('.day-row')]
+  const target = rows.find(row => Number(row.dataset.date) === focus) ||
+    rows.reduce<HTMLElement|null>((nearest, row) => {
+      if (!nearest) return row
+      return Math.abs(Number(row.dataset.date) - focus) < Math.abs(Number(nearest.dataset.date) - focus) ? row : nearest
+    }, null)
+  target?.scrollIntoView({block:'center'})
+}
+onMounted(loadAndRestorePosition)
 </script>
 
 <template>
@@ -94,7 +108,7 @@ onMounted(load)
     <div class="timeline-container">
       <template v-for="group in groups" :key="group.year">
         <div class="year-separator" :id="`year-${group.year}`">{{ group.year }}</div>
-        <div v-for="day in group.days" :key="day.date" class="day-row" @click="router.push(`/day/${day.date}`)">
+        <div v-for="day in group.days" :key="day.date" class="day-row" :data-date="day.date" @click="router.push(`/day/${day.date}`)">
           <div class="col-date">
             <span class="date-month">{{ datePart(day.startDate,4,6) }}月</span>
             <div v-if="isDateRange(day)" class="date-range-lines">
