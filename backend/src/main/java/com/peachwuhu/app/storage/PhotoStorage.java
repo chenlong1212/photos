@@ -4,8 +4,11 @@ import com.peachwuhu.app.common.AppProperties;
 import org.apache.commons.imaging.Imaging;
 import org.apache.commons.imaging.common.ImageMetadata;
 import org.apache.commons.imaging.formats.jpeg.JpegImageMetadata;
+import org.apache.commons.imaging.formats.jpeg.exif.ExifRewriter;
 import org.apache.commons.imaging.formats.tiff.TiffField;
 import org.apache.commons.imaging.formats.tiff.constants.ExifTagConstants;
+import org.apache.commons.imaging.formats.tiff.write.TiffOutputDirectory;
+import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
@@ -14,6 +17,7 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.*;
 import java.util.Locale;
 import java.util.Set;
@@ -117,6 +121,32 @@ public class PhotoStorage {
             );
         }
         return "";
+    }
+
+    public byte[] withPhotoTimeExif(Path source, String photoTime) throws IOException {
+        byte[] original = Files.readAllBytes(source);
+        if (photoTime == null || !photoTime.matches("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}")) return original;
+        String extension = source.getFileName().toString().toLowerCase(Locale.ROOT);
+        if (!extension.endsWith(".jpg") && !extension.endsWith(".jpeg")) return original;
+        try {
+            ImageMetadata metadata = Imaging.getMetadata(source.toFile());
+            TiffOutputSet outputSet = new TiffOutputSet();
+            if (metadata instanceof JpegImageMetadata jpeg) {
+                if (jpeg.findExifValue(ExifTagConstants.EXIF_TAG_DATE_TIME_ORIGINAL) != null) return original;
+                if (jpeg.getExif() != null) outputSet = jpeg.getExif().getOutputSet();
+            }
+            TiffOutputDirectory exif = outputSet.getOrCreateExifDirectory();
+            String exifTime = photoTime.substring(0, 10).replace('-', ':') + photoTime.substring(10) + ":00";
+            exif.removeField(ExifTagConstants.EXIF_TAG_DATE_TIME_ORIGINAL);
+            exif.removeField(ExifTagConstants.EXIF_TAG_DATE_TIME_DIGITIZED);
+            exif.add(ExifTagConstants.EXIF_TAG_DATE_TIME_ORIGINAL, exifTime);
+            exif.add(ExifTagConstants.EXIF_TAG_DATE_TIME_DIGITIZED, exifTime);
+            ByteArrayOutputStream output = new ByteArrayOutputStream(original.length + 4096);
+            new ExifRewriter().updateExifMetadataLossless(original, output, outputSet);
+            return output.toByteArray();
+        } catch (Exception ignored) {
+            return original;
+        }
     }
 
     private String normalizePhotoTime(String raw) {

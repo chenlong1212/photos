@@ -2,8 +2,8 @@
 import { nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Sortable from 'sortablejs'
-import * as exifr from 'exifr'
 import { http, mediaUrl } from '../api/http'
+import { detectPhotoTime } from '../utils/photoTime'
 
 type Image = {id:number;rawPath:string;previewPath:string;photoTime:string;isCover:boolean}
 const route=useRoute(),router=useRouter(),date=Number(route.params.date)
@@ -26,12 +26,7 @@ async function appendPhotos(event:Event){
   form.append('info',info.value)
   form.append('updateInfo','true')
   for(const file of files){
-    let photoTime=''
-    try{
-      const data:any=await exifr.parse(file,['DateTimeOriginal','CreateDate','ModifyDate'])
-      const value=data?.DateTimeOriginal||data?.CreateDate||data?.ModifyDate
-      if(value instanceof Date)photoTime=value.toLocaleString('sv-SE').slice(0,16)
-    }catch{}
+    const photoTime=await detectPhotoTime(file)
     form.append('photoTimes',photoTime)
     form.append('photos',file)
   }

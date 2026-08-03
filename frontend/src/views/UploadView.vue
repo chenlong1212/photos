@@ -2,15 +2,15 @@
 import { nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Sortable from 'sortablejs'
-import * as exifr from 'exifr'
 import { http } from '../api/http'
+import { detectPhotoTime } from '../utils/photoTime'
 
 type Photo={uid:string;file:File;src:string;time:string;cover:boolean}
 const router=useRouter(),route=useRoute(),album=sessionStorage.getItem('currentAlbum')||'peachwuhu'
 const info=ref(''),date=ref(String(route.query.date||'').replace(/(....)(..)(..)/,'$1-$2-$3')),photos=ref<Photo[]>([])
 const loading=ref(''),grid=ref<HTMLElement>(),dateWarning=ref(false)
 onMounted(()=>{if(grid.value)new Sortable(grid.value,{animation:150,filter:'.static-item',delay:200,delayOnTouchOnly:true})})
-async function choose(event:Event){const files=[...(event.target as HTMLInputElement).files||[]];const dates=new Set<string>();for(const file of files){const uid=`${file.name}-${file.size}-${Date.now()}-${Math.random()}`;let time='';try{const data:any=await exifr.parse(file,['DateTimeOriginal','CreateDate','ModifyDate']);const value=data?.DateTimeOriginal||data?.CreateDate||data?.ModifyDate;if(value instanceof Date){time=value.toLocaleString('sv-SE').slice(0,16);dates.add(time.slice(0,10))}}catch{}if(!time&&file.lastModified){const d=new Date(file.lastModified);dates.add(d.toLocaleDateString('sv-SE'))}photos.value.push({uid,file,src:URL.createObjectURL(file),time,cover:false})}const sorted=[...dates].sort();if(sorted[0]&&(!date.value||sorted[0]<date.value))date.value=sorted[0];dateWarning.value=dates.size>1;(event.target as HTMLInputElement).value='';await nextTick()}
+async function choose(event:Event){const files=[...(event.target as HTMLInputElement).files||[]];const dates=new Set<string>();for(const file of files){const uid=`${file.name}-${file.size}-${Date.now()}-${Math.random()}`;const time=await detectPhotoTime(file);if(time)dates.add(time.slice(0,10));photos.value.push({uid,file,src:URL.createObjectURL(file),time,cover:false})}const sorted=[...dates].sort();if(sorted[0]&&(!date.value||sorted[0]<date.value))date.value=sorted[0];dateWarning.value=dates.size>1;(event.target as HTMLInputElement).value='';await nextTick()}
 function toggle(photo:Photo){const count=photos.value.filter(x=>x.cover).length;if(!photo.cover&&count>=9)return alert('封面最多只能选择 9 张');photo.cover=!photo.cover}
 function sort(){photos.value.sort((a,b)=>a.time&&b.time?a.time.localeCompare(b.time):a.time?-1:b.time?1:0)}
 async function publish(){if(!date.value)return alert('请选择拍摄日期');if(!photos.value.length)return alert('请至少选择一张照片');const covers=photos.value.filter(x=>x.cover);if(covers.length&&![1,3,4,8,9].includes(covers.length))return alert('封面图数量只能是 1、3、4、8 或 9 张');const ordered=[...document.querySelectorAll<HTMLElement>('.grid-item:not(.static-item)')].map(el=>photos.value.find(x=>x.uid===el.dataset.uid)!).filter(Boolean);const form=new FormData();form.append('date',date.value.replaceAll('-',''));form.append('info',info.value);form.append('updateInfo','true');ordered.forEach(p=>{form.append('photoUids',p.uid);form.append('photoTimes',p.time);form.append('photos',p.file)});covers.forEach(p=>form.append('coverUids',p.uid));loading.value='准备上传...';await http.post(`/albums/${album}/images`,form,{onUploadProgress:e=>loading.value=`正在上传... ${Math.round((e.loaded/(e.total||e.loaded))*100)}%`});sessionStorage.setItem('uploadSuccessMessage',`${date.value}上传成功，共${photos.value.length}张图片`);await router.push('/')}
