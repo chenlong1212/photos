@@ -19,6 +19,9 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.*;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -28,6 +31,10 @@ import java.util.regex.Pattern;
 public class PhotoStorage {
     private static final Pattern FILENAME_TIME =
         Pattern.compile(".*?(\\d{4})(\\d{2})(\\d{2})[_-]?(\\d{2})(\\d{2})(\\d{2}).*");
+    private static final Pattern WECHAT_CAMERA_TIME =
+        Pattern.compile("(?i)^wx_camera_(\\d{13})(?:\\D.*)?$");
+    private static final DateTimeFormatter PHOTO_TIME_FORMAT =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.of("Asia/Shanghai"));
     private final AppProperties properties;
 
     public PhotoStorage(AppProperties properties) {
@@ -119,6 +126,17 @@ public class PhotoStorage {
                 matcher.group(1), matcher.group(2), matcher.group(3),
                 matcher.group(4), matcher.group(5)
             );
+        }
+        Matcher wechatMatcher = WECHAT_CAMERA_TIME.matcher(source.getFileName().toString());
+        if (wechatMatcher.matches()) {
+            try {
+                Instant value = Instant.ofEpochMilli(Long.parseLong(wechatMatcher.group(1)));
+                int year = value.atZone(ZoneId.of("Asia/Shanghai")).getYear();
+                int nextYear = Instant.now().atZone(ZoneId.of("Asia/Shanghai")).getYear() + 1;
+                if (year >= 2000 && year <= nextYear) return PHOTO_TIME_FORMAT.format(value);
+            } catch (RuntimeException ignored) {
+                // Invalid timestamps are treated as unknown photo times.
+            }
         }
         return "";
     }

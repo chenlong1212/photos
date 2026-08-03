@@ -4,6 +4,7 @@ const filenameTimePatterns = [
   /(?:^|\D)(\d{4})(\d{2})(\d{2})[_-]?(\d{2})(\d{2})(\d{2})(?:\D|$)/,
   /(?:^|\D)(\d{4})[-_.](\d{2})[-_.](\d{2})[ T_-]?(\d{2})[-_.:]?(\d{2})(?:[-_.:]?(\d{2}))?(?:\D|$)/
 ]
+const wechatCameraTime = /^wx_camera_(\d{13})(?:\D|$)/i
 
 function validTime(parts: string[]): string {
   const [year, month, day, hour, minute] = parts.map(Number)
@@ -19,6 +20,14 @@ export function photoTimeFromFilename(filename: string): string {
     if (match) {
       const value = validTime(match.slice(1, 6))
       if (value) return value
+    }
+  }
+  const wechatMatch = filename.match(wechatCameraTime)
+  if (wechatMatch) {
+    const value = new Date(Number(wechatMatch[1]))
+    const year = value.getFullYear()
+    if (!Number.isNaN(value.getTime()) && year >= 2000 && year <= new Date().getFullYear() + 1) {
+      return value.toLocaleString('sv-SE').slice(0, 16)
     }
   }
   return ''
