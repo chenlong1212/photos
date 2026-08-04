@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onActivated, onMounted, ref } from 'vue'
+import { computed, nextTick, onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { http, mediaUrl } from '../api/http'
 
@@ -31,6 +31,7 @@ const groups = computed(() => years.value.map(year => ({
 })))
 const scrollKey = computed(() => `timeline-scroll:${current.value}`)
 const timelinePage=ref<HTMLElement>()
+let timelineActive=true,restoreGeneration=0
 
 async function load() {
   albums.value = (await http.get('/albums')).data
@@ -99,17 +100,32 @@ async function loadAndRestorePosition() {
   target?.scrollIntoView({block:'center'})
 }
 onMounted(loadAndRestorePosition)
-onActivated(async()=>{
+function restoreSavedPosition(){
   const saved = sessionStorage.getItem(scrollKey.value)
-  if (saved === null) return
-  await nextTick()
-  if(timelinePage.value)timelinePage.value.scrollTop=Number(saved)
-  window.setTimeout(()=>{
-    window.scrollTo({top:Number(saved),behavior:'instant'})
+  if(!timelineActive||saved===null)return
+  const target=Number(saved),generation=++restoreGeneration
+  let attempts=0
+  const restore=()=>{
+    if(!timelineActive||generation!==restoreGeneration)return
+    window.scrollTo({top:target,behavior:'instant'})
+    attempts++
+    if(Math.abs(window.scrollY-target)>2&&attempts<8){requestAnimationFrame(restore);return}
     document.getElementById('timeline-swipe-backdrop')?.remove()
-  },280)
+  }
+  requestAnimationFrame(()=>requestAnimationFrame(restore))
+}
+function transitionFinished(){restoreSavedPosition()}
+onMounted(()=>window.addEventListener('peachwuhu:route-transition-finished',transitionFinished))
+onUnmounted(()=>window.removeEventListener('peachwuhu:route-transition-finished',transitionFinished))
+onActivated(async()=>{
+  timelineActive=true
+  const saved=sessionStorage.getItem(scrollKey.value)
+  await nextTick()
+  if(saved!==null&&timelinePage.value)timelinePage.value.scrollTop=Number(saved)
+  window.setTimeout(restoreSavedPosition,450)
   sessionStorage.removeItem('timeline-return-ready')
 })
+onDeactivated(()=>{timelineActive=false;restoreGeneration++})
 </script>
 
 <template>

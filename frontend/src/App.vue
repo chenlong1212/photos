@@ -4,11 +4,12 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 const transitionName = computed(() => route.path.startsWith('/day/') ? 'page-push' : 'page-pop')
+function notifyTransitionFinished(){window.dispatchEvent(new Event('peachwuhu:route-transition-finished'))}
 </script>
 
 <template>
   <router-view v-slot="{Component,route:currentRoute}">
-    <transition :name="transitionName">
+    <transition :name="transitionName" @after-enter="notifyTransitionFinished">
       <keep-alive include="TimelineView">
         <component :is="Component" :key="currentRoute.path" />
       </keep-alive>
