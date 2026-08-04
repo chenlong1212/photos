@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { http, mediaUrl } from '../api/http'
 
@@ -29,9 +29,7 @@ const groups = computed(() => years.value.map(year => ({
   year,
   days: days.value.filter(d => String(d.startDate).startsWith(year))
 })))
-const scrollKey = computed(() => `timeline-scroll:${current.value}`)
 const timelinePage=ref<HTMLElement>()
-let timelineActive=true,restoreGeneration=0
 
 async function load() {
   albums.value = (await http.get('/albums')).data
@@ -56,18 +54,7 @@ function doSearch(event:KeyboardEvent) {
   setTimeout(() => row.classList.remove('highlight-anim'), 1500)
 }
 function openDay(day:Day) {
-  sessionStorage.setItem(scrollKey.value, String(window.scrollY))
   sessionStorage.setItem('timeline-return-ready', 'true')
-  document.getElementById('timeline-swipe-backdrop')?.remove()
-  const backdrop=document.createElement('div')
-  backdrop.id='timeline-swipe-backdrop'
-  const snapshot=timelinePage.value?.cloneNode(true) as HTMLElement|undefined
-  if(snapshot){
-    backdrop.style.cssText='position:fixed;inset:0;overflow:hidden;background:#fff;pointer-events:none;z-index:0'
-    snapshot.style.cssText=`position:absolute;left:0;top:${-window.scrollY}px;width:100%;min-height:100vh`
-    backdrop.appendChild(snapshot)
-    document.body.appendChild(backdrop)
-  }
   router.push(`/day/${day.date}`)
 }
 function datePart(date:number, start:number, end:number) { return Number(String(date).slice(start,end)) }
@@ -100,32 +87,9 @@ async function loadAndRestorePosition() {
   target?.scrollIntoView({block:'center'})
 }
 onMounted(loadAndRestorePosition)
-function restoreSavedPosition(){
-  const saved = sessionStorage.getItem(scrollKey.value)
-  if(!timelineActive||saved===null)return
-  const target=Number(saved),generation=++restoreGeneration
-  let attempts=0
-  const restore=()=>{
-    if(!timelineActive||generation!==restoreGeneration)return
-    window.scrollTo({top:target,behavior:'instant'})
-    attempts++
-    if(Math.abs(window.scrollY-target)>2&&attempts<8){requestAnimationFrame(restore);return}
-    document.getElementById('timeline-swipe-backdrop')?.remove()
-  }
-  requestAnimationFrame(()=>requestAnimationFrame(restore))
-}
-function transitionFinished(){restoreSavedPosition()}
-onMounted(()=>window.addEventListener('peachwuhu:route-transition-finished',transitionFinished))
-onUnmounted(()=>window.removeEventListener('peachwuhu:route-transition-finished',transitionFinished))
-onActivated(async()=>{
-  timelineActive=true
-  const saved=sessionStorage.getItem(scrollKey.value)
-  await nextTick()
-  if(saved!==null&&timelinePage.value)timelinePage.value.scrollTop=Number(saved)
-  window.setTimeout(restoreSavedPosition,450)
-  sessionStorage.removeItem('timeline-return-ready')
-})
-onDeactivated(()=>{timelineActive=false;restoreGeneration++})
+function refreshTimeline(){load()}
+onMounted(()=>window.addEventListener('peachwuhu:timeline-refresh',refreshTimeline))
+onUnmounted(()=>window.removeEventListener('peachwuhu:timeline-refresh',refreshTimeline))
 </script>
 
 <template>

@@ -48,13 +48,14 @@ function endSwipe(){
   swipeResetting.value=true;swipeX.value=0
   window.setTimeout(()=>swipeResetting.value=false,220)
 }
-async function save(){const selected=covers();if(selected.length&&![1,3,4,8,9].includes(selected.length))return alert('封面图数量只能是 1、3、4、8 或 9 张');loading.value='正在更新...';const order=[...document.querySelectorAll<HTMLElement>('.grid-item:not(.static-item)')].map(x=>Number(x.dataset.id));await http.put(`/albums/${album.value}/days/${date}`,{info:info.value,order,covers:selected});await returnToDate()}
+async function save(){const selected=covers();if(selected.length&&![1,3,4,8,9].includes(selected.length))return alert('封面图数量只能是 1、3、4、8 或 9 张');loading.value='正在更新...';const order=[...document.querySelectorAll<HTMLElement>('.grid-item:not(.static-item)')].map(x=>Number(x.dataset.id));await http.put(`/albums/${album.value}/days/${date}`,{info:info.value,order,covers:selected});window.dispatchEvent(new Event('peachwuhu:timeline-refresh'));returnToDate()}
 async function remove(id:number){
   if(loading.value||!confirm('确定要删除吗？'))return
   loading.value='正在删除...'
   try{
     const {data}=await http.delete(`/albums/${album.value}/images/${id}`)
     images.value=images.value.filter(image=>image.id!==id)
+    window.dispatchEvent(new Event('peachwuhu:timeline-refresh'))
     if(Number(data.remaining)===0){
       await returnToDate()
       return
