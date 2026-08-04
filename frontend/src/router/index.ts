@@ -9,6 +9,8 @@ import AdminView from '../views/AdminView.vue'
 import AdminTransferView from '../views/AdminTransferView.vue'
 import PhotoView from '../views/PhotoView.vue'
 
+if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual'
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
