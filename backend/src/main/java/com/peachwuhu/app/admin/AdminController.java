@@ -53,6 +53,8 @@ public class AdminController {
                 String.valueOf(album.get("label")),
                 value("SELECT COUNT(*) FROM album_days WHERE album_id=?", id),
                 value("SELECT COUNT(*) FROM images WHERE album_id=?", id),
+                value("SELECT COUNT(*) FROM images WHERE album_id=? AND media_type='photo'", id),
+                value("SELECT COUNT(*) FROM images WHERE album_id=? AND media_type='video'", id),
                 String.valueOf(full.get("folder_name"))
             ));
         }
@@ -63,6 +65,8 @@ public class AdminController {
             "回收站",
             value("SELECT COUNT(DISTINCT origin_album_key, origin_date) FROM recycled_images"),
             value("SELECT COUNT(*) FROM recycled_images"),
+            value("SELECT COUNT(*) FROM recycled_images WHERE media_type='photo'"),
+            value("SELECT COUNT(*) FROM recycled_images WHERE media_type='video'"),
             "photos_recycle"
         );
 
@@ -71,9 +75,11 @@ public class AdminController {
         Map<String, Object> total = summaryRow(
             "all",
             "all",
-            "总图片",
+            "全部媒体",
             value("SELECT COUNT(*) FROM album_days"),
             value("SELECT COUNT(*) FROM images"),
+            value("SELECT COUNT(*) FROM images WHERE media_type='photo'"),
+            value("SELECT COUNT(*) FROM images WHERE media_type='video'"),
             totalRaw,
             totalPreview
         );
@@ -90,7 +96,8 @@ public class AdminController {
             return Map.of(
                 "title", "回收站",
                 "days", jdbc.queryForList("""
-                    SELECT origin_date AS date, COUNT(*) AS imageCount, '' AS info
+                    SELECT origin_date AS date, COUNT(*) AS imageCount,
+                           SUM(media_type='photo') AS photoCount,SUM(media_type='video') AS videoCount,'' AS info
                     FROM recycled_images
                     GROUP BY origin_date
                     ORDER BY origin_date DESC
@@ -105,7 +112,8 @@ public class AdminController {
                 "title", album.get("label"),
                 "days", jdbc.queryForList("""
                     SELECT d.photo_date AS date, a.album_key AS albumKey,
-                           COUNT(i.id) AS imageCount, d.info
+                           COUNT(i.id) AS imageCount,SUM(i.media_type='photo') AS photoCount,
+                           SUM(i.media_type='video') AS videoCount,d.info
                     FROM album_days d
                     JOIN albums a ON a.id=d.album_id
                     LEFT JOIN images i
@@ -118,10 +126,11 @@ public class AdminController {
         }
 
         return Map.of(
-            "title", "总图片",
+            "title", "全部媒体",
             "days", jdbc.queryForList("""
                 SELECT d.photo_date AS date, a.album_key AS albumKey, a.label AS album,
-                       COUNT(i.id) AS imageCount, d.info
+                       COUNT(i.id) AS imageCount,SUM(i.media_type='photo') AS photoCount,
+                       SUM(i.media_type='video') AS videoCount,d.info
                 FROM album_days d
                 JOIN albums a ON a.id=d.album_id
                 LEFT JOIN images i
@@ -156,6 +165,8 @@ public class AdminController {
         String label,
         long days,
         long images,
+        long photos,
+        long videos,
         String folder
     ) throws IOException {
         return summaryRow(
@@ -164,6 +175,8 @@ public class AdminController {
             label,
             days,
             images,
+            photos,
+            videos,
             stat(storage.resolve(folder + "/raw")),
             stat(storage.resolve(folder + "/preview"))
         );
@@ -175,6 +188,8 @@ public class AdminController {
         String label,
         long days,
         long images,
+        long photos,
+        long videos,
         DirStat raw,
         DirStat preview
     ) {
@@ -184,6 +199,8 @@ public class AdminController {
         row.put("label", label);
         row.put("dayCount", days);
         row.put("imageCount", images);
+        row.put("photoCount", photos);
+        row.put("videoCount", videos);
         row.put("rawCount", raw.count);
         row.put("rawSize", format(raw.bytes));
         row.put("rawAverage", format(raw.count == 0 ? 0 : raw.bytes / raw.count));

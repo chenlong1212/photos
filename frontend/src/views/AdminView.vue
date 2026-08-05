@@ -8,6 +8,8 @@ type SummaryRow = {
   label: string
   dayCount: number
   imageCount: number
+  photoCount: number
+  videoCount: number
   rawCount: number
   rawSize: string
   rawAverage: string
@@ -21,6 +23,8 @@ type DayRow = {
   albumKey?: string
   album?: string
   imageCount: number
+  photoCount: number
+  videoCount: number
   info?: string
   draftInfo: string
   saving?: boolean
@@ -112,7 +116,7 @@ async function saveDescription(day: DayRow) {
       <header class="header">
         <div>
           <button v-if="selected" class="text-button" type="button" @click="closeDetail">← 统计</button>
-          <h1>{{ selected ? detailTitle : '图片统计' }}</h1>
+          <h1>{{ selected ? detailTitle : '媒体统计' }}</h1>
         </div>
         <router-link to="/" class="text-link">返回相册</router-link>
       </header>
@@ -125,7 +129,7 @@ async function saveDescription(day: DayRow) {
           <thead>
             <tr>
               <th>相册</th>
-              <th>总图片</th>
+              <th>媒体数量</th>
               <th>总天数</th>
               <th>原图占用</th>
               <th>缩略图占用</th>
@@ -142,16 +146,16 @@ async function saveDescription(day: DayRow) {
               <th>{{ row.label }}</th>
               <td>
                 {{ row.imageCount }}
-                <small>原图 {{ row.rawCount }} / 缩略图 {{ row.previewCount }}</small>
+                <small>照片 {{ row.photoCount }} / 视频 {{ row.videoCount }}</small>
               </td>
               <td>{{ row.dayCount }}</td>
               <td>
                 {{ row.rawSize }}
-                <small>平均 {{ row.rawAverage }} / 图</small>
+                <small>原文件 {{ row.rawCount }} 个，平均 {{ row.rawAverage }}</small>
               </td>
               <td>
                 {{ row.previewSize }}
-                <small>平均 {{ row.previewAverage }} / 图</small>
+                <small>封面/缩略图 {{ row.previewCount }} 个，平均 {{ row.previewAverage }}</small>
               </td>
             </tr>
           </tbody>
@@ -164,21 +168,21 @@ async function saveDescription(day: DayRow) {
             <tr>
               <th>日期</th>
               <th v-if="selected.scope === 'all'">相册</th>
-              <th>图片数量</th>
-              <th>图片描述</th>
+              <th>媒体数量</th>
+              <th>描述</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(day, index) in days" :key="`${day.date}-${day.album || ''}-${index}`" class="plain-row">
               <td class="date-cell">{{ formatDate(day.date) }}</td>
               <td v-if="selected.scope === 'all'" class="album-cell">{{ day.album }}</td>
-              <td class="count-cell">{{ day.imageCount }}</td>
+              <td class="count-cell">{{ day.imageCount }}<small>照片 {{day.photoCount||0}} / 视频 {{day.videoCount||0}}</small></td>
               <td class="description">
                 <template v-if="selected.scope !== 'recycle'">
                   <textarea
                     v-model="day.draftInfo"
                     rows="1"
-                    aria-label="图片描述"
+                    aria-label="媒体描述"
                     @keydown.meta.enter="saveDescription(day)"
                     @keydown.ctrl.enter="saveDescription(day)"
                   />

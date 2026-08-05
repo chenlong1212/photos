@@ -28,6 +28,7 @@ public class RecycleController {
         return jdbc.queryForList("""
             SELECT id,origin_album_key AS originAlbum,origin_date AS originDate,filename,
                    raw_path AS rawPath,preview_path AS previewPath,photo_time AS photoTime,
+                   media_type AS mediaType,mime_type AS mimeType,duration_ms AS durationMs,width,height,
                    deleted_at AS deletedAt
             FROM recycled_images ORDER BY deleted_at DESC
             """);
@@ -37,7 +38,7 @@ public class RecycleController {
     @Transactional
     public Map<String, String> restore(@PathVariable long id, @RequestBody RestoreRequest request) throws IOException {
         List<Map<String, Object>> rows = jdbc.queryForList("SELECT * FROM recycled_images WHERE id=?", id);
-        if (rows.isEmpty()) throw new NoSuchElementException("回收站图片不存在");
+        if (rows.isEmpty()) throw new NoSuchElementException("回收站媒体不存在");
         Map<String, Object> recycled = rows.get(0);
         Map<String, Object> album = albums.requireAlbum(request.albumKey());
         long albumId = ((Number) album.get("id")).longValue();
@@ -49,7 +50,7 @@ public class RecycleController {
             String.valueOf(recycled.get("filename")));
         Path previewTarget = storage.unique(storage.resolve(folder + "/preview/" + date),
             stripExtension(rawTarget.getFileName().toString()) + ".jpg");
-        if (!Files.exists(rawSource)) throw new NoSuchFileException("回收站原图不存在");
+        if (!Files.exists(rawSource)) throw new NoSuchFileException("回收站原文件不存在");
         storage.move(rawSource, rawTarget);
         if (Files.exists(previewSource)) storage.move(previewSource, previewTarget);
         else storage.createPreview(rawTarget, previewTarget);
@@ -64,11 +65,13 @@ public class RecycleController {
         if (photoTime.isBlank() || "null".equals(photoTime)) photoTime = storage.extractPhotoTime(rawTarget);
         jdbc.update("""
             INSERT INTO images(
-                album_id,photo_date,raw_path,preview_path,original_filename,sort_order,photo_time,file_size
+                album_id,photo_date,raw_path,preview_path,original_filename,media_type,mime_type,
+                sort_order,photo_time,file_size,duration_ms,width,height
             )
-            VALUES(?,?,?,?,?,?,?,?)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, albumId, date, relative(rawTarget), relative(previewTarget), rawTarget.getFileName().toString(),
-            order == null ? 0 : order, photoTime, Files.size(rawTarget));
+            recycled.get("media_type"), recycled.get("mime_type"), order == null ? 0 : order, photoTime,
+            Files.size(rawTarget), recycled.get("duration_ms"), recycled.get("width"), recycled.get("height"));
         jdbc.update("DELETE FROM recycled_images WHERE id=?", id);
         return Map.of("status", "success");
     }

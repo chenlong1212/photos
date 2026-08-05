@@ -1,4 +1,5 @@
 import * as exifr from 'exifr'
+import { isVideoFile } from './media'
 
 const filenameTimePatterns = [
   /(?:^|\D)(\d{4})(\d{2})(\d{2})[_-]?(\d{2})(\d{2})(\d{2})(?:\D|$)/,
@@ -35,6 +36,7 @@ export function photoTimeFromFilename(filename: string): string {
 
 export async function detectPhotoTime(file: File): Promise<string> {
   try {
+    if (isVideoFile(file)) return photoTimeFromFilename(file.name)
     const data: any = await exifr.parse(file, ['DateTimeOriginal', 'CreateDate', 'ModifyDate'])
     const value = data?.DateTimeOriginal || data?.CreateDate || data?.ModifyDate
     if (value instanceof Date && !Number.isNaN(value.getTime())) {

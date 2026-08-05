@@ -5,8 +5,8 @@ spring:
     default: dev
   servlet:
     multipart:
-      max-file-size: 50MB
-      max-request-size: 500MB
+      max-file-size: 1GB
+      max-request-size: 2GB
   flyway:
     enabled: true
     validate-on-migrate: true
@@ -23,7 +23,7 @@ server:
 
 peachwuhu:
   preview-size: 400
-  allowed-extensions: jpg,jpeg,png,heic,heif,webp
+  allowed-extensions: jpg,jpeg,png,heic,heif,webp,mp4,mov,m4v,webm,3gp
   auth:
     trusted-device-days: 30
     trusted-cookie-secure: false

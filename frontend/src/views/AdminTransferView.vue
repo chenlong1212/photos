@@ -5,7 +5,7 @@ import { http, mediaUrl } from '../api/http'
 
 type Album = { key: string; label: string }
 type Day = { date: number; imageCount: number; info?: string }
-type Image = { id: number; previewPath: string; photoTime?: string }
+type Image = { id: number; previewPath: string; photoTime?: string; mediaType?: string; durationMs?: number }
 type DayDetail = { info: string; images: Image[] }
 
 const router = useRouter()
@@ -119,7 +119,7 @@ async function transfer() {
   const sourceLabel = albums.value.find(album => album.key === sourceAlbum.value)?.label
   const targetLabel = albums.value.find(album => album.key === targetAlbum.value)?.label
   const count = sourceDetail.value.images.length
-  if (!confirm(`确定把 ${sourceLabel} / ${formatDate(Number(sourceDate.value))} 的 ${count} 张图片转移到 ${targetLabel} / ${targetDate.value} 吗？`)) return
+  if (!confirm(`确定把 ${sourceLabel} / ${formatDate(Number(sourceDate.value))} 的 ${count} 个媒体转移到 ${targetLabel} / ${targetDate.value} 吗？`)) return
 
   transferring.value = true
   error.value = ''
@@ -132,7 +132,7 @@ async function transfer() {
       targetDate: Number(targetDate.value.replaceAll('-', '')),
       description: description.value
     })
-    message.value = `已成功转移 ${data.count} 张图片`
+    message.value = `已成功转移 ${data.count} 个媒体`
     sourceDate.value = ''
     sourceDetail.value = undefined
     const { data: daysData } = await http.get('/admin/days', {
@@ -154,7 +154,7 @@ async function transfer() {
       <header>
         <div>
           <button type="button" class="back" @click="router.push('/')">← 返回主页</button>
-          <h1>转移图片</h1>
+          <h1>转移媒体</h1>
         </div>
         <router-link to="/" class="album-link">返回相册</router-link>
       </header>
@@ -182,17 +182,18 @@ async function transfer() {
               <select v-model="sourceDate" :disabled="loadingSource">
                 <option value="">请选择日期</option>
                 <option v-for="day in sourceDays" :key="day.date" :value="String(day.date)">
-                  {{ formatDate(day.date) }}（{{ day.imageCount }} 张）
+                  {{ formatDate(day.date) }}（{{ day.imageCount }} 个）
                 </option>
               </select>
             </label>
           </div>
           <p v-if="loadingSource" class="placeholder">加载中…</p>
           <div v-else-if="sourceDetail?.images.length" class="preview-block">
-            <p class="summary">{{ sourceDetail.images.length }} 张 · {{ sourceDetail.info || '无描述' }}</p>
+            <p class="summary">{{ sourceDetail.images.length }} 个 · {{ sourceDetail.info || '无描述' }}</p>
             <div class="image-grid">
               <div v-for="image in sourceDetail.images" :key="image.id" class="thumb">
                 <img :src="mediaUrl(image.previewPath)" loading="lazy">
+                <b v-if="image.mediaType==='video'" class="play">▶</b>
                 <span v-if="image.photoTime">{{ image.photoTime }}</span>
               </div>
             </div>
@@ -223,18 +224,19 @@ async function transfer() {
           <p v-if="sameLocation" class="target-state invalid">目标位置不能和原位置相同</p>
           <p v-else-if="loadingTarget" class="placeholder">加载中…</p>
           <div v-else-if="targetDetail?.images.length" class="preview-block">
-            <p class="target-state existing">目标已有 {{ targetDetail.images.length }} 张图片，将追加到末尾</p>
+            <p class="target-state existing">目标已有 {{ targetDetail.images.length }} 个媒体，将追加到末尾</p>
             <p class="summary">{{ targetDetail.info || '无描述' }}</p>
             <div class="image-grid">
               <div v-for="image in targetDetail.images" :key="image.id" class="thumb">
                 <img :src="mediaUrl(image.previewPath)" loading="lazy">
+                <b v-if="image.mediaType==='video'" class="play">▶</b>
               </div>
             </div>
           </div>
           <div v-else-if="/^\d{4}-\d{2}-\d{2}$/.test(targetDate)" class="new-day">
             <p class="target-state empty">此位置为空白，需创建</p>
             <label>
-              <span>图片描述</span>
+              <span>媒体描述</span>
               <textarea v-model="description" rows="3" placeholder="请输入这一天的描述"></textarea>
             </label>
           </div>
@@ -243,7 +245,7 @@ async function transfer() {
       </div>
 
       <button class="transfer-button" type="button" :disabled="!canTransfer" @click="transfer">
-        {{ transferring ? '正在转移…' : '确认转移图片' }}
+        {{ transferring ? '正在转移…' : '确认转移媒体' }}
       </button>
     </div>
   </main>
@@ -273,7 +275,7 @@ textarea{resize:vertical;line-height:1.5}
 .image-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;max-height:380px;overflow:auto}
 .thumb{position:relative;aspect-ratio:1;overflow:hidden;border-radius:3px;background:#eee}
 .thumb img{width:100%;height:100%;object-fit:cover}
-.thumb span{position:absolute;right:2px;bottom:2px;left:2px;padding:2px;background:rgba(0,0,0,.55);color:#fff;font-size:9px;text-align:center}
+.thumb span{position:absolute;right:2px;bottom:2px;left:2px;padding:2px;background:rgba(0,0,0,.55);color:#fff;font-size:9px;text-align:center}.thumb .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:12px}
 .target-state{margin-bottom:12px;padding:9px 11px;border-radius:3px;font-size:13px}
 .existing{background:#eef5ff;color:#175cd3}.empty{background:#fff7e6;color:#a15c00}.invalid{background:#fff0f0;color:#b42318}
 .new-day{min-height:180px}.transfer-button{display:block;width:min(420px,100%);margin:22px auto 0;border:0;border-radius:4px;padding:14px;background:#222;color:#fff;font-size:16px;font-weight:600;cursor:pointer}

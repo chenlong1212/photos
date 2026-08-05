@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.*;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
@@ -29,6 +30,7 @@ import java.util.regex.Pattern;
 
 @Service
 public class PhotoStorage {
+    private static final Set<String> VIDEO_EXTENSIONS = Set.of("mp4", "mov", "m4v", "webm", "3gp");
     private static final Pattern FILENAME_TIME =
         Pattern.compile(".*?(\\d{4})(\\d{2})(\\d{2})[_-]?(\\d{2})(\\d{2})(\\d{2}).*");
     private static final Pattern WECHAT_CAMERA_TIME =
@@ -70,6 +72,11 @@ public class PhotoStorage {
         return allowed.contains(filename.substring(dot + 1).toLowerCase(Locale.ROOT));
     }
 
+    public boolean isVideo(String filename) {
+        int dot = filename.lastIndexOf('.');
+        return dot >= 0 && VIDEO_EXTENSIONS.contains(filename.substring(dot + 1).toLowerCase(Locale.ROOT));
+    }
+
     public Path unique(Path directory, String filename) throws IOException {
         Files.createDirectories(directory);
         Path target = directory.resolve(filename);
@@ -87,6 +94,10 @@ public class PhotoStorage {
     }
 
     public void createPreview(Path source, Path target) throws IOException {
+        if (isVideo(source.getFileName().toString())) {
+            createVideoPoster(source, target);
+            return;
+        }
         BufferedImage original = ImageIO.read(source.toFile());
         if (original == null) throw new IOException("文件不是有效图片或当前格式暂不支持");
         int limit = properties.getPreviewSize();
@@ -104,7 +115,55 @@ public class PhotoStorage {
         if (!ImageIO.write(preview, "jpg", target.toFile())) throw new IOException("无法生成缩略图");
     }
 
+    private void createVideoPoster(Path source, Path target) throws IOException {
+        Files.createDirectories(target.getParent());
+        Process process = new ProcessBuilder(
+            "ffmpeg", "-y", "-ss", "0.1", "-i", source.toString(), "-frames:v", "1",
+            "-vf", "scale=min(" + properties.getPreviewSize() + "\\,iw):-2", "-q:v", "3", target.toString()
+        ).redirectErrorStream(true).start();
+        try {
+            String output = new String(process.getInputStream().readAllBytes());
+            if (process.waitFor() != 0 || !Files.isRegularFile(target)) {
+                throw new IOException("视频封面生成失败：" + output.lines().reduce((a, b) -> b).orElse("FFmpeg错误"));
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IOException("视频封面生成被中断", exception);
+        }
+    }
+
+    public VideoMetadata videoMetadata(Path source) {
+        if (!isVideo(source.getFileName().toString())) return new VideoMetadata(0, 0, 0);
+        try {
+            Process process = new ProcessBuilder(
+                "ffprobe", "-v", "error", "-select_streams", "v:0",
+                "-show_entries", "stream=width,height:format=duration",
+                "-of", "default=noprint_wrappers=1", source.toString()
+            ).redirectErrorStream(true).start();
+            String output = new String(process.getInputStream().readAllBytes());
+            if (process.waitFor() != 0) return new VideoMetadata(0, 0, 0);
+            int width = 0, height = 0;
+            long duration = 0;
+            for (String line : output.lines().toList()) {
+                String[] pair = line.split("=", 2);
+                if (pair.length != 2) continue;
+                if ("width".equals(pair[0])) width = Integer.parseInt(pair[1]);
+                if ("height".equals(pair[0])) height = Integer.parseInt(pair[1]);
+                if ("duration".equals(pair[0])) duration = Math.round(Double.parseDouble(pair[1]) * 1000);
+            }
+            return new VideoMetadata(duration, width, height);
+        } catch (Exception ignored) {
+            return new VideoMetadata(0, 0, 0);
+        }
+    }
+
+    public record VideoMetadata(long durationMs, int width, int height) {}
+
     public String extractPhotoTime(Path source) {
+        if (isVideo(source.getFileName().toString())) {
+            String videoTime = extractVideoTime(source);
+            if (!videoTime.isBlank()) return videoTime;
+        }
         try {
             ImageMetadata metadata = Imaging.getMetadata(source.toFile());
             if (metadata instanceof JpegImageMetadata jpeg) {
@@ -137,6 +196,32 @@ public class PhotoStorage {
             } catch (RuntimeException ignored) {
                 // Invalid timestamps are treated as unknown photo times.
             }
+        }
+        return "";
+    }
+
+    private String extractVideoTime(Path source) {
+        try {
+            Process process = new ProcessBuilder(
+                "ffprobe", "-v", "error", "-show_entries",
+                "format_tags=creation_time:stream_tags=creation_time", "-of", "default=noprint_wrappers=1",
+                source.toString()
+            ).redirectErrorStream(true).start();
+            String output = new String(process.getInputStream().readAllBytes());
+            if (process.waitFor() != 0) return "";
+            for (String line : output.lines().toList()) {
+                int equals = line.indexOf('=');
+                if (equals < 0) continue;
+                String raw = line.substring(equals + 1).trim();
+                try {
+                    return PHOTO_TIME_FORMAT.format(OffsetDateTime.parse(raw).toInstant());
+                } catch (RuntimeException ignored) {
+                    String normalized = normalizePhotoTime(raw.replace('T', ' '));
+                    if (!normalized.isBlank()) return normalized;
+                }
+            }
+        } catch (Exception ignored) {
+            // Filename parsing remains available when ffprobe metadata is absent.
         }
         return "";
     }

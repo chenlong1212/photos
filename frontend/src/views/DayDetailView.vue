@@ -4,8 +4,9 @@ import { useRoute, useRouter } from 'vue-router'
 import Sortable from 'sortablejs'
 import { http, mediaUrl } from '../api/http'
 import { detectPhotoTime } from '../utils/photoTime'
+import { formatDuration } from '../utils/media'
 
-type Image = {id:number;rawPath:string;previewPath:string;photoTime:string;isCover:boolean}
+type Image = {id:number;rawPath:string;previewPath:string;photoTime:string;isCover:boolean;mediaType:'photo'|'video';durationMs:number}
 const route=useRoute(),router=useRouter(),date=Number(route.params.date)
 const album=ref(sessionStorage.getItem('currentAlbum')||'peachwuhu')
 const info=ref(''),images=ref<Image[]>([]),listMode=ref(localStorage.getItem('viewStyle')==='list')
@@ -92,7 +93,7 @@ async function appendPhotos(event:Event){
     loading.value=''
   }
 }
-function open(rawPath:string){router.push({path:'/view',query:{src:rawPath}})}
+function open(image:Image){router.push({path:'/view',query:{src:image.rawPath,type:image.mediaType}})}
 onMounted(load)
 </script>
 <template><main class="detail-page" :class="{'is-swiping':swiping}" :style="swipeStyle" @touchstart="startSwipe" @touchmove="moveSwipe" @touchend="endSwipe" @touchcancel="endSwipe">
@@ -101,16 +102,18 @@ onMounted(load)
   <div class="container"><div class="text-area-wrapper"><textarea v-model="info" class="story-input" placeholder="点击编辑文字..."/></div>
     <div ref="grid" class="grid" :class="{'list-mode':listMode}">
       <div v-for="image in images" :key="image.id" class="grid-item fade-in" :class="{'cover-selected':image.isCover}" :data-id="image.id" :data-photo-time="image.photoTime">
-        <div class="bg-img" :style="{backgroundImage:`url(${mediaUrl(image.previewPath)})`}" @click="open(image.rawPath)"/>
-        <img class="real-img" :src="mediaUrl(image.previewPath)" loading="lazy" @click="open(image.rawPath)">
+        <div class="bg-img" :style="{backgroundImage:`url(${mediaUrl(image.previewPath)})`}" @click="open(image)"/>
+        <img class="real-img" :src="mediaUrl(image.previewPath)" loading="lazy" @click="open(image)">
+        <span v-if="image.mediaType==='video'" class="video-play">▶</span><span v-if="image.mediaType==='video'" class="video-duration">{{formatDuration(image.durationMs)}}</span>
         <div v-if="image.photoTime" class="photo-time-tag">{{image.photoTime}}</div>
         <div class="cover-btn-wrapper"><button class="cover-btn" @click.stop="toggleCover(image.id)">封面</button></div>
         <div class="delete-btn-wrapper"><button class="delete-btn" @click.stop="remove(image.id)">✕</button></div>
-      </div><div class="grid-item add-photo-item static-item" @click="fileInput?.click()"><span class="add-icon">+</span><input ref="fileInput" class="hidden-file-input" type="file" multiple accept="image/*" @change="appendPhotos"></div>
+      </div><div class="grid-item add-photo-item static-item" @click="fileInput?.click()"><span class="add-icon">+</span><input ref="fileInput" class="hidden-file-input" type="file" multiple accept="image/*,video/*" @change="appendPhotos"></div>
     </div>
   </div>
 </main></template>
 <style scoped>
 .detail-page{min-height:100vh;padding-top:50px;padding-bottom:80px;transform:translate3d(var(--swipe-x,0),0,0);touch-action:pan-y;background:#fff}.detail-page.is-swiping{box-shadow:-10px 0 28px rgba(0,0,0,.18)}.navbar{position:fixed;top:0;left:0;width:100%;height:50px;background:rgba(255,255,255,.98);border-bottom:.5px solid #eee;display:flex;align-items:center;justify-content:space-between;padding:0 15px;z-index:100}.back-btn{color:#333;font-size:16px;display:flex;align-items:center;cursor:pointer}.back-btn i{width:10px;height:10px;border-top:2px solid #333;border-left:2px solid #333;transform:rotate(-45deg);margin-right:2px}.nav-center,.nav-actions{display:flex;align-items:center;gap:8px}.nav-title{font-size:16px;font-weight:600}.style-toggle-btn{background:none;border:1px solid #ddd;border-radius:12px;padding:2px 8px;font-size:12px}.sort-btn{border:1px solid #ddd;background:#fff;color:#555;padding:6px 10px;border-radius:4px;font-size:13px}.save-btn{border:0;background:#07c160;color:#fff;padding:6px 14px;border-radius:4px;font-size:14px;font-weight:bold}.container{padding:20px}.text-area-wrapper{width:100%;margin-bottom:20px}.story-input{width:100%;min-height:150px;border:0;background:transparent;font-size:16px;line-height:1.5;color:#333;resize:none;outline:0;padding:0}.grid{display:grid;gap:8px;grid-template-columns:repeat(3,1fr)}@media(min-width:600px){.grid{grid-template-columns:repeat(4,1fr)}}.grid-item{position:relative;aspect-ratio:1;border-radius:4px;overflow:hidden;background:#f2f2f2;user-select:none}.bg-img{width:100%;height:100%;background-size:cover;background-position:center;cursor:pointer}.real-img{display:none}.grid.list-mode{grid-template-columns:repeat(2,1fr);gap:15px;align-items:start}.grid.list-mode .grid-item{aspect-ratio:auto;height:auto;border-radius:8px;background:transparent;box-shadow:0 4px 12px rgba(0,0,0,.08);overflow:visible}.grid.list-mode .bg-img{display:none}.grid.list-mode .real-img{display:block;width:100%;height:auto;border-radius:8px}.photo-time-tag{position:absolute;bottom:4px;left:5px;color:rgba(255,255,255,.95);font-size:10px;font-weight:600;z-index:5;text-shadow:0 1px 2px rgba(0,0,0,.8)}.cover-btn-wrapper{position:absolute;top:2px;left:2px;z-index:10}.cover-btn{min-width:42px;height:20px;padding:0 6px;border:0;border-radius:10px;background:rgba(0,0,0,.4);color:#fff;font-size:11px}.cover-selected{box-shadow:inset 0 0 0 3px #2f7cff}.cover-selected .cover-btn{background:#2f7cff}.delete-btn-wrapper{position:absolute;top:2px;right:2px;z-index:10}.delete-btn{width:20px;height:20px;background:rgba(0,0,0,.4);color:#fff;border-radius:50%;border:0}.add-photo-item{background:#f7f7f7;display:flex;align-items:center;justify-content:center;cursor:pointer}.add-icon{font-size:40px;color:#ddd;font-weight:300}.list-mode .add-photo-item{height:200px;border:2px dashed #ddd}.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.8);backdrop-filter:blur(5px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;opacity:0;pointer-events:none}.loading-overlay.show{opacity:1;pointer-events:auto}.spinner{width:40px;height:40px;border:4px solid #07c160;border-top-color:#b2e6c6;border-radius:50%;animation:spin 1s linear infinite}.loading-text{margin-top:15px;color:#666;font-size:14px;font-weight:bold}@keyframes spin{to{transform:rotate(360deg)}}
 .hidden-file-input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+.video-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:18px;padding-left:3px;pointer-events:none}.video-duration{position:absolute;right:5px;bottom:5px;padding:2px 5px;border-radius:3px;background:rgba(0,0,0,.65);color:#fff;font-size:10px;pointer-events:none}.photo-time-tag+.video-duration{bottom:22px}
 </style>

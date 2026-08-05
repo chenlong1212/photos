@@ -49,7 +49,8 @@ public class AdminTransferController {
             date
         );
         List<Map<String, Object>> images = jdbc.queryForList("""
-            SELECT id,preview_path AS previewPath,photo_time AS photoTime
+            SELECT id,preview_path AS previewPath,photo_time AS photoTime,
+                   media_type AS mediaType,duration_ms AS durationMs
             FROM images
             WHERE album_id=? AND photo_date=?
             ORDER BY sort_order,id

@@ -23,11 +23,15 @@ public class MediaController {
         String relativePath = path.startsWith("/") ? path.substring(1) : path;
         Resource resource = storage.resource(relativePath);
         MediaType type = MediaTypeFactory.getMediaType(resource).orElse(MediaType.APPLICATION_OCTET_STREAM);
-        var times = relativePath.contains("/raw/")
-            ? jdbc.queryForList("SELECT photo_time FROM images WHERE raw_path=? LIMIT 1", String.class, relativePath)
-            : java.util.List.<String>of();
-        if (!times.isEmpty() && times.get(0) != null && !times.get(0).isBlank()) {
-            byte[] content = storage.withPhotoTimeExif(storage.resolve(relativePath), times.get(0));
+        var metadata = relativePath.contains("/raw/")
+            ? jdbc.queryForList("SELECT photo_time AS photoTime,media_type AS mediaType FROM images WHERE raw_path=? LIMIT 1", relativePath)
+            : java.util.List.<java.util.Map<String, Object>>of();
+        if (!metadata.isEmpty()
+            && "photo".equals(metadata.get(0).get("mediaType"))
+            && metadata.get(0).get("photoTime") != null
+            && !String.valueOf(metadata.get(0).get("photoTime")).isBlank()) {
+            byte[] content = storage.withPhotoTimeExif(
+                storage.resolve(relativePath), String.valueOf(metadata.get(0).get("photoTime")));
             resource = new ByteArrayResource(content) {
                 @Override public String getFilename() { return storage.resolve(relativePath).getFileName().toString(); }
             };

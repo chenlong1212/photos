@@ -76,16 +76,21 @@ public class ImageController {
                 photo.transferTo(raw);
                 storage.createPreview(raw, preview);
                 if (photoTime.isBlank()) photoTime = storage.extractPhotoTime(raw);
+                boolean video = storage.isVideo(original);
+                PhotoStorage.VideoMetadata metadata = storage.videoMetadata(raw);
                 Integer maxOrder = jdbc.queryForObject(
                     "SELECT COALESCE(MAX(sort_order),-1) FROM images WHERE album_id=? AND photo_date=?",
                     Integer.class, albumId, date);
                 String rawPath = storage.root().relativize(raw).toString().replace('\\', '/');
                 String previewPath = storage.root().relativize(preview).toString().replace('\\', '/');
                 jdbc.update("""
-                    INSERT INTO images(album_id,photo_date,raw_path,preview_path,original_filename,sort_order,photo_time,file_size)
-                    VALUES(?,?,?,?,?,?,?,?)
+                    INSERT INTO images(album_id,photo_date,raw_path,preview_path,original_filename,media_type,mime_type,
+                                       sort_order,photo_time,file_size,duration_ms,width,height)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
                     """, albumId, date, rawPath, previewPath, raw.getFileName().toString(),
-                    (maxOrder == null ? -1 : maxOrder) + 1, photoTime, Files.size(raw));
+                    video ? "video" : "photo", photo.getContentType() == null ? "" : photo.getContentType(),
+                    (maxOrder == null ? -1 : maxOrder) + 1, photoTime, Files.size(raw),
+                    metadata.durationMs(), metadata.width(), metadata.height());
                 Long id = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
                 String uid = photoUids != null && index < photoUids.size() ? photoUids.get(index) : "";
                 if (selected.contains(uid) && id != null) selectedIds.add(id);
@@ -97,7 +102,7 @@ public class ImageController {
                 invalid.add(Map.of("name", original, "reason", exception.getMessage()));
             }
         }
-        if (success == 0) throw new IllegalArgumentException("没有成功保存任何图片");
+        if (success == 0) throw new IllegalArgumentException("没有成功保存任何媒体文件");
         if (newPost) {
             List<Long> ids = jdbc.queryForList("""
                 SELECT id FROM images WHERE album_id=? AND photo_date=?
@@ -116,7 +121,8 @@ public class ImageController {
         Map<String, Object> album = albums.requireAlbum(albumKey);
         long albumId = ((Number) album.get("id")).longValue();
         List<Map<String, Object>> rows = jdbc.queryForList("""
-            SELECT id,photo_date,raw_path,preview_path,original_filename,photo_time
+            SELECT id,photo_date,raw_path,preview_path,original_filename,media_type,mime_type,
+                   photo_time,duration_ms,width,height
             FROM images WHERE id=? AND album_id=?
             """, imageId, albumId);
         if (rows.isEmpty()) throw new NoSuchElementException("图片不存在");
@@ -132,11 +138,13 @@ public class ImageController {
         if (Files.exists(previewSource)) storage.move(previewSource, previewTarget);
         jdbc.update("""
             INSERT INTO recycled_images(
-                origin_album_key,origin_date,filename,raw_path,preview_path,photo_time,deleted_at
+                origin_album_key,origin_date,filename,media_type,mime_type,raw_path,preview_path,
+                photo_time,duration_ms,width,height,deleted_at
             )
-            VALUES(?,?,?,?,?,?,?)
-            """, albumKey, image.get("photo_date"), image.get("original_filename"),
-            relative(rawTarget), relative(previewTarget), image.get("photo_time"), LocalDateTime.now());
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+            """, albumKey, image.get("photo_date"), image.get("original_filename"), image.get("media_type"),
+            image.get("mime_type"), relative(rawTarget), relative(previewTarget), image.get("photo_time"),
+            image.get("duration_ms"), image.get("width"), image.get("height"), LocalDateTime.now());
         jdbc.update("DELETE FROM images WHERE id=?", imageId);
         int date = ((Number) image.get("photo_date")).intValue();
         albums.normalizeCovers(albumId, date);

@@ -58,13 +58,13 @@ public class AlbumService {
         for (Map<String, Object> day : days) {
             int date = ((Number) day.get("date")).intValue();
             List<Map<String, Object>> covers = jdbc.queryForList("""
-                SELECT id, preview_path AS previewPath
+                SELECT id, preview_path AS previewPath, media_type AS mediaType, duration_ms AS durationMs
                 FROM images WHERE album_id=? AND photo_date=? AND is_cover=1
                 ORDER BY sort_order,id
                 """, albumId, date);
             if (!VALID_COVER_COUNTS.contains(covers.size())) {
                 covers = jdbc.queryForList("""
-                    SELECT id, preview_path AS previewPath FROM images
+                    SELECT id, preview_path AS previewPath, media_type AS mediaType, duration_ms AS durationMs FROM images
                     WHERE album_id=? AND photo_date=? ORDER BY sort_order,id LIMIT 1
                     """, albumId, date);
             }
@@ -85,7 +85,8 @@ public class AlbumService {
         List<Map<String, Object>> images = jdbc.queryForList("""
             SELECT id, photo_date AS date, raw_path AS rawPath, preview_path AS previewPath,
                    original_filename AS filename, sort_order AS sortOrder,
-                   photo_time AS photoTime, is_cover AS isCover, file_size AS fileSize
+                   photo_time AS photoTime, is_cover AS isCover, file_size AS fileSize,
+                   media_type AS mediaType,mime_type AS mimeType,duration_ms AS durationMs,width,height
             FROM images WHERE album_id=? AND photo_date=? ORDER BY sort_order,id
             """, albumId, date);
         return Map.of("album", album, "date", date, "info", days.get(0).get("info"), "images", images);
