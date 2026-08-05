@@ -135,7 +135,7 @@ onUnmounted(()=>window.removeEventListener('peachwuhu:timeline-refresh',refreshT
             </div>
             <span class="total-count">共{{ day.count }}张</span>
           </div></div>
-          <div class="col-info">{{ day.info?.length>70 ? day.info.slice(0,67)+'...' : day.info }}</div>
+          <div class="col-info">{{ day.info?.length>50 ? day.info.slice(0,47)+'...' : day.info }}</div>
         </div>
       </template>
     </div>
