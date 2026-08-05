@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 @RestController
 public class MediaController {
@@ -37,5 +38,19 @@ public class MediaController {
             };
         }
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(type).body(resource);
+    }
+
+    @GetMapping("/api/media/download")
+    public ResponseEntity<Resource> download(@RequestParam String path) throws IOException {
+        String relativePath = path.startsWith("/") ? path.substring(1) : path;
+        Resource resource = storage.resource(relativePath);
+        String filename = storage.resolve(relativePath).getFileName().toString();
+        MediaType type = MediaTypeFactory.getMediaType(resource).orElse(MediaType.APPLICATION_OCTET_STREAM);
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.noStore())
+            .contentType(type)
+            .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                .filename(filename, StandardCharsets.UTF_8).build().toString())
+            .body(resource);
     }
 }

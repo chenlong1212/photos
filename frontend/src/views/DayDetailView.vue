@@ -6,7 +6,7 @@ import { http, mediaUrl } from '../api/http'
 import { detectPhotoTime } from '../utils/photoTime'
 import { formatDuration } from '../utils/media'
 
-type Image = {id:number;rawPath:string;previewPath:string;photoTime:string;isCover:boolean;mediaType:'photo'|'video';durationMs:number}
+type Image = {id:number;rawPath:string;previewPath:string;filename:string;photoTime:string;isCover:boolean;mediaType:'photo'|'video';durationMs:number}
 const props=defineProps<{date?:number|string}>()
 const route=useRoute(),router=useRouter()
 const currentDate=Number(props.date??route.params.date)
@@ -95,7 +95,7 @@ async function appendPhotos(event:Event){
     loading.value=''
   }
 }
-function open(image:Image){router.push({path:'/view',query:{src:image.rawPath,type:image.mediaType,fromDate:String(currentDate)}})}
+function open(image:Image){router.push({path:'/view',query:{src:image.rawPath,type:image.mediaType,filename:image.filename,fromDate:String(currentDate)}})}
 onMounted(load)
 </script>
 <template><main class="detail-page" :class="{'is-swiping':swiping}" :style="swipeStyle" @touchstart="startSwipe" @touchmove="moveSwipe" @touchend="endSwipe" @touchcancel="endSwipe">

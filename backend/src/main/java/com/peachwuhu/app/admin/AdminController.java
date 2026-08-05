@@ -55,6 +55,7 @@ public class AdminController {
                 value("SELECT COUNT(*) FROM images WHERE album_id=?", id),
                 value("SELECT COUNT(*) FROM images WHERE album_id=? AND media_type='photo'", id),
                 value("SELECT COUNT(*) FROM images WHERE album_id=? AND media_type='video'", id),
+                value("SELECT COALESCE(SUM(file_size),0) FROM images WHERE album_id=? AND media_type='video'", id),
                 String.valueOf(full.get("folder_name"))
             ));
         }
@@ -67,6 +68,7 @@ public class AdminController {
             value("SELECT COUNT(*) FROM recycled_images"),
             value("SELECT COUNT(*) FROM recycled_images WHERE media_type='photo'"),
             value("SELECT COUNT(*) FROM recycled_images WHERE media_type='video'"),
+            pathBytes("SELECT raw_path FROM recycled_images WHERE media_type='video'"),
             "photos_recycle"
         );
 
@@ -80,6 +82,7 @@ public class AdminController {
             value("SELECT COUNT(*) FROM images"),
             value("SELECT COUNT(*) FROM images WHERE media_type='photo'"),
             value("SELECT COUNT(*) FROM images WHERE media_type='video'"),
+            value("SELECT COALESCE(SUM(file_size),0) FROM images WHERE media_type='video'"),
             totalRaw,
             totalPreview
         );
@@ -167,6 +170,7 @@ public class AdminController {
         long images,
         long photos,
         long videos,
+        long videoBytes,
         String folder
     ) throws IOException {
         return summaryRow(
@@ -177,6 +181,7 @@ public class AdminController {
             images,
             photos,
             videos,
+            videoBytes,
             stat(storage.resolve(folder + "/raw")),
             stat(storage.resolve(folder + "/preview"))
         );
@@ -190,6 +195,7 @@ public class AdminController {
         long images,
         long photos,
         long videos,
+        long videoBytes,
         DirStat raw,
         DirStat preview
     ) {
@@ -201,6 +207,7 @@ public class AdminController {
         row.put("imageCount", images);
         row.put("photoCount", photos);
         row.put("videoCount", videos);
+        row.put("videoSize", format(videoBytes));
         row.put("rawCount", raw.count);
         row.put("rawSize", format(raw.bytes));
         row.put("rawAverage", format(raw.count == 0 ? 0 : raw.bytes / raw.count));
@@ -213,6 +220,17 @@ public class AdminController {
     private long value(String sql, Object... args) {
         Long value = jdbc.queryForObject(sql, Long.class, args);
         return value == null ? 0 : value;
+    }
+
+    private long pathBytes(String sql, Object... args) {
+        return jdbc.queryForList(sql, String.class, args).stream().mapToLong(relativePath -> {
+            try {
+                Path path = storage.resolve(relativePath);
+                return Files.isRegularFile(path) ? Files.size(path) : 0;
+            } catch (IOException ignored) {
+                return 0;
+            }
+        }).sum();
     }
 
     private DirStat stat(Path path) throws IOException {
