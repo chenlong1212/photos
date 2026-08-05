@@ -55,6 +55,7 @@ public class AdminController {
                 value("SELECT COUNT(*) FROM images WHERE album_id=?", id),
                 value("SELECT COUNT(*) FROM images WHERE album_id=? AND media_type='photo'", id),
                 value("SELECT COUNT(*) FROM images WHERE album_id=? AND media_type='video'", id),
+                value("SELECT COALESCE(SUM(file_size),0) FROM images WHERE album_id=? AND media_type='photo'", id),
                 value("SELECT COALESCE(SUM(file_size),0) FROM images WHERE album_id=? AND media_type='video'", id),
                 String.valueOf(full.get("folder_name"))
             ));
@@ -68,11 +69,11 @@ public class AdminController {
             value("SELECT COUNT(*) FROM recycled_images"),
             value("SELECT COUNT(*) FROM recycled_images WHERE media_type='photo'"),
             value("SELECT COUNT(*) FROM recycled_images WHERE media_type='video'"),
+            pathBytes("SELECT raw_path FROM recycled_images WHERE media_type='photo'"),
             pathBytes("SELECT raw_path FROM recycled_images WHERE media_type='video'"),
             "photos_recycle"
         );
 
-        DirStat totalRaw = statActive(storage.root(), "/raw/");
         DirStat totalPreview = statActive(storage.root(), "/preview/");
         Map<String, Object> total = summaryRow(
             "all",
@@ -82,8 +83,8 @@ public class AdminController {
             value("SELECT COUNT(*) FROM images"),
             value("SELECT COUNT(*) FROM images WHERE media_type='photo'"),
             value("SELECT COUNT(*) FROM images WHERE media_type='video'"),
+            value("SELECT COALESCE(SUM(file_size),0) FROM images WHERE media_type='photo'"),
             value("SELECT COALESCE(SUM(file_size),0) FROM images WHERE media_type='video'"),
-            totalRaw,
             totalPreview
         );
 
@@ -170,6 +171,7 @@ public class AdminController {
         long images,
         long photos,
         long videos,
+        long photoBytes,
         long videoBytes,
         String folder
     ) throws IOException {
@@ -181,8 +183,8 @@ public class AdminController {
             images,
             photos,
             videos,
+            photoBytes,
             videoBytes,
-            stat(storage.resolve(folder + "/raw")),
             stat(storage.resolve(folder + "/preview"))
         );
     }
@@ -195,8 +197,8 @@ public class AdminController {
         long images,
         long photos,
         long videos,
+        long photoBytes,
         long videoBytes,
-        DirStat raw,
         DirStat preview
     ) {
         Map<String, Object> row = new LinkedHashMap<>();
@@ -208,9 +210,10 @@ public class AdminController {
         row.put("photoCount", photos);
         row.put("videoCount", videos);
         row.put("videoSize", format(videoBytes));
-        row.put("rawCount", raw.count);
-        row.put("rawSize", format(raw.bytes));
-        row.put("rawAverage", format(raw.count == 0 ? 0 : raw.bytes / raw.count));
+        row.put("videoAverage", format(videos == 0 ? 0 : videoBytes / videos));
+        row.put("rawCount", photos);
+        row.put("rawSize", format(photoBytes));
+        row.put("rawAverage", format(photos == 0 ? 0 : photoBytes / photos));
         row.put("previewCount", preview.count);
         row.put("previewSize", format(preview.bytes));
         row.put("previewAverage", format(preview.count == 0 ? 0 : preview.bytes / preview.count));

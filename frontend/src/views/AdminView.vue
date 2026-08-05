@@ -11,6 +11,7 @@ type SummaryRow = {
   photoCount: number
   videoCount: number
   videoSize: string
+  videoAverage: string
   rawCount: number
   rawSize: string
   rawAverage: string
@@ -153,9 +154,12 @@ async function saveDescription(day: DayRow) {
               <td>{{ row.dayCount }}</td>
               <td>
                 {{ row.rawSize }}
-                <small>原文件 {{ row.rawCount }} 个，平均 {{ row.rawAverage }}</small>
+                <small>原图 {{ row.rawCount }} 张，平均 {{ row.rawAverage }}</small>
               </td>
-              <td>{{ row.videoSize }}</td>
+              <td>
+                {{ row.videoSize }}
+                <small>原视频 {{ row.videoCount }} 个，平均 {{ row.videoAverage }}</small>
+              </td>
               <td>
                 {{ row.previewSize }}
                 <small>封面/缩略图 {{ row.previewCount }} 个，平均 {{ row.previewAverage }}</small>
