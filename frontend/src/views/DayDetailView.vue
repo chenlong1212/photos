@@ -7,7 +7,9 @@ import { detectPhotoTime } from '../utils/photoTime'
 import { formatDuration } from '../utils/media'
 
 type Image = {id:number;rawPath:string;previewPath:string;photoTime:string;isCover:boolean;mediaType:'photo'|'video';durationMs:number}
-const route=useRoute(),router=useRouter(),date=Number(route.params.date)
+const props=defineProps<{date?:number|string}>()
+const route=useRoute(),router=useRouter()
+const currentDate=Number(props.date??route.params.date)
 const album=ref(sessionStorage.getItem('currentAlbum')||'peachwuhu')
 const info=ref(''),images=ref<Image[]>([]),listMode=ref(localStorage.getItem('viewStyle')==='list')
 const loading=ref(''),grid=ref<HTMLElement>(),fileInput=ref<HTMLInputElement>()
@@ -17,7 +19,7 @@ const swipeStyle=computed(()=>({
   '--swipe-x':`${swipeX.value}px`,
   transition:swipeResetting.value?'transform .2s cubic-bezier(.22,.61,.36,1)':'none'
 }))
-async function load(){const {data}=await http.get(`/albums/${album.value}/days/${date}`);info.value=data.info;images.value=data.images;await nextTick();if(grid.value)new Sortable(grid.value,{animation:150,filter:'.static-item',delay:150,delayOnTouchOnly:true})}
+async function load(){const {data}=await http.get(`/albums/${album.value}/days/${currentDate}`);info.value=data.info;images.value=data.images;await nextTick();if(grid.value)new Sortable(grid.value,{animation:150,filter:'.static-item',delay:150,delayOnTouchOnly:true})}
 function toggleStyle(){listMode.value=!listMode.value;localStorage.setItem('viewStyle',listMode.value?'list':'grid')}
 function covers(){return [...document.querySelectorAll<HTMLElement>('.grid-item.cover-selected:not(.static-item)')].map(x=>Number(x.dataset.id))}
 function toggleCover(id:number){const image=images.value.find(x=>x.id===id)!;const count=images.value.filter(x=>x.isCover).length;if(!image.isCover&&count>=9)return alert('封面最多只能选择 9 张');image.isCover=!image.isCover}
@@ -26,7 +28,7 @@ function returnToDate(){
   if(returning)return
   returning=true
   if(sessionStorage.getItem('timeline-return-ready')==='true')router.back()
-  else router.push({path:'/',query:{focus:String(date)}})
+  else router.push({path:'/',query:{focus:String(currentDate)}})
 }
 function startSwipe(event:TouchEvent){
   if(event.touches.length!==1||loading.value)return
@@ -49,7 +51,7 @@ function endSwipe(){
   swipeResetting.value=true;swipeX.value=0
   window.setTimeout(()=>swipeResetting.value=false,220)
 }
-async function save(){const selected=covers();if(selected.length&&![1,3,4,8,9].includes(selected.length))return alert('封面图数量只能是 1、3、4、8 或 9 张');loading.value='正在更新...';const order=[...document.querySelectorAll<HTMLElement>('.grid-item:not(.static-item)')].map(x=>Number(x.dataset.id));await http.put(`/albums/${album.value}/days/${date}`,{info:info.value,order,covers:selected});window.dispatchEvent(new Event('peachwuhu:timeline-refresh'));returnToDate()}
+async function save(){const selected=covers();if(selected.length&&![1,3,4,8,9].includes(selected.length))return alert('封面图数量只能是 1、3、4、8 或 9 张');loading.value='正在更新...';const order=[...document.querySelectorAll<HTMLElement>('.grid-item:not(.static-item)')].map(x=>Number(x.dataset.id));await http.put(`/albums/${album.value}/days/${currentDate}`,{info:info.value,order,covers:selected});window.dispatchEvent(new Event('peachwuhu:timeline-refresh'));returnToDate()}
 async function remove(id:number){
   if(loading.value||!confirm('确定要删除吗？'))return
   loading.value='正在删除...'
@@ -73,7 +75,7 @@ async function appendPhotos(event:Event){
   const files=[...(input.files||[])]
   if(!files.length)return
   const form=new FormData()
-  form.append('date',String(date))
+  form.append('date',String(currentDate))
   form.append('info',info.value)
   form.append('updateInfo','true')
   for(const file of files){
@@ -93,12 +95,12 @@ async function appendPhotos(event:Event){
     loading.value=''
   }
 }
-function open(image:Image){router.push({path:'/view',query:{src:image.rawPath,type:image.mediaType}})}
+function open(image:Image){router.push({path:'/view',query:{src:image.rawPath,type:image.mediaType,fromDate:String(currentDate)}})}
 onMounted(load)
 </script>
 <template><main class="detail-page" :class="{'is-swiping':swiping}" :style="swipeStyle" @touchstart="startSwipe" @touchmove="moveSwipe" @touchend="endSwipe" @touchcancel="endSwipe">
   <div class="loading-overlay" :class="{show:loading}"><div class="spinner"></div><div class="loading-text">{{loading}}</div></div>
-  <div class="navbar"><a class="back-btn" @click="returnToDate"><i/> 返回</a><div class="nav-center"><div class="nav-title">{{String(date).replace(/(....)(..)(..)/,'$1.$2.$3')}}</div><button class="style-toggle-btn" @click="toggleStyle">{{listMode?'≣':'⬜'}}</button></div><div class="nav-actions"><button class="sort-btn" @click="sort">整理</button><button class="save-btn" @click="save">保存</button></div></div>
+  <div class="navbar"><a class="back-btn" @click="returnToDate"><i/> 返回</a><div class="nav-center"><div class="nav-title">{{String(currentDate).replace(/(....)(..)(..)/,'$1.$2.$3')}}</div><button class="style-toggle-btn" @click="toggleStyle">{{listMode?'≣':'⬜'}}</button></div><div class="nav-actions"><button class="sort-btn" @click="sort">整理</button><button class="save-btn" @click="save">保存</button></div></div>
   <div class="container"><div class="text-area-wrapper"><textarea v-model="info" class="story-input" placeholder="点击编辑文字..."/></div>
     <div ref="grid" class="grid" :class="{'list-mode':listMode}">
       <div v-for="image in images" :key="image.id" class="grid-item fade-in" :class="{'cover-selected':image.isCover}" :data-id="image.id" :data-photo-time="image.photoTime">

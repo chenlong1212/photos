@@ -7,7 +7,8 @@ import PhotoView from './views/PhotoView.vue'
 
 const route=useRoute()
 const isMemoryRoute=computed(()=>route.path==='/'||route.path.startsWith('/day/')||route.path==='/view')
-const isDayRoute=computed(()=>route.path.startsWith('/day/'))
+const memoryDate=computed(()=>route.path.startsWith('/day/')?String(route.params.date||''):String(route.query.fromDate||''))
+const isDayRoute=computed(()=>Boolean(memoryDate.value))
 const isViewerRoute=computed(()=>route.path==='/view')
 watch(()=>route.path,path=>{if(path==='/')sessionStorage.removeItem('timeline-return-ready')})
 </script>
@@ -16,7 +17,7 @@ watch(()=>route.path,path=>{if(path==='/')sessionStorage.removeItem('timeline-re
   <div v-if="isMemoryRoute" class="memory-shell">
     <TimelineView />
     <transition name="detail-slide">
-      <DayDetailView v-if="isDayRoute" :key="String(route.params.date)" />
+      <DayDetailView v-if="isDayRoute" :key="memoryDate" :date="memoryDate" />
     </transition>
     <PhotoView v-if="isViewerRoute" class="media-viewer-layer" />
   </div>
