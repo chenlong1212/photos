@@ -7,6 +7,7 @@ import org.apache.commons.imaging.formats.jpeg.JpegImageMetadata;
 import org.apache.commons.imaging.formats.jpeg.exif.ExifRewriter;
 import org.apache.commons.imaging.formats.tiff.TiffField;
 import org.apache.commons.imaging.formats.tiff.constants.ExifTagConstants;
+import org.apache.commons.imaging.formats.tiff.constants.TiffTagConstants;
 import org.apache.commons.imaging.formats.tiff.write.TiffOutputDirectory;
 import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 import org.springframework.core.io.Resource;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.awt.geom.AffineTransform;
 import java.io.IOException;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.*;
@@ -100,6 +102,7 @@ public class PhotoStorage {
         }
         BufferedImage original = ImageIO.read(source.toFile());
         if (original == null) throw new IOException("文件不是有效图片或当前格式暂不支持");
+        original = applyExifOrientation(source, original);
         int limit = properties.getPreviewSize();
         double scale = Math.min(1d, Math.min((double) limit / original.getWidth(), (double) limit / original.getHeight()));
         int width = Math.max(1, (int) Math.round(original.getWidth() * scale));
@@ -113,6 +116,44 @@ public class PhotoStorage {
         graphics.dispose();
         Files.createDirectories(target.getParent());
         if (!ImageIO.write(preview, "jpg", target.toFile())) throw new IOException("无法生成缩略图");
+    }
+
+    private BufferedImage applyExifOrientation(Path source, BufferedImage image) {
+        int orientation = 1;
+        try {
+            ImageMetadata metadata = Imaging.getMetadata(source.toFile());
+            if (metadata instanceof JpegImageMetadata jpeg) {
+                TiffField field = jpeg.findExifValue(TiffTagConstants.TIFF_TAG_ORIENTATION);
+                if (field != null) orientation = field.getIntValue();
+            }
+        } catch (Exception ignored) {
+            return image;
+        }
+        if (orientation < 2 || orientation > 8) return image;
+
+        int width = image.getWidth();
+        int height = image.getHeight();
+        boolean swapDimensions = orientation >= 5;
+        BufferedImage oriented = new BufferedImage(
+            swapDimensions ? height : width,
+            swapDimensions ? width : height,
+            BufferedImage.TYPE_INT_RGB
+        );
+        AffineTransform transform = switch (orientation) {
+            case 2 -> new AffineTransform(-1, 0, 0, 1, width, 0);
+            case 3 -> new AffineTransform(-1, 0, 0, -1, width, height);
+            case 4 -> new AffineTransform(1, 0, 0, -1, 0, height);
+            case 5 -> new AffineTransform(0, 1, 1, 0, 0, 0);
+            case 6 -> new AffineTransform(0, 1, -1, 0, height, 0);
+            case 7 -> new AffineTransform(0, -1, -1, 0, height, width);
+            case 8 -> new AffineTransform(0, -1, 1, 0, 0, width);
+            default -> new AffineTransform();
+        };
+        Graphics2D graphics = oriented.createGraphics();
+        graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        graphics.drawImage(image, transform, null);
+        graphics.dispose();
+        return oriented;
     }
 
     private void createVideoPoster(Path source, Path target) throws IOException {
